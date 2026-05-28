@@ -7,6 +7,10 @@ const Index = () => {
       </h1>
       <div className="flex flex-row m-2 p-4">
           <img src="https://assets.ccbp.in/frontend/react-js/rcb-img.png
+          
+" alt="kishore" className="w-50 h-50 m-2"/>
+<img src="https://assets.ccbp.in/frontend/react-js/rcb-img.png
+          
 " alt="kishore" className="w-50 h-50 m-2"/>
           <img src="https://assets.ccbp.in/frontend/react-js/csk-img.png" alt="vyshu" className="w-50 h-50 m-2"/>
       </div>
