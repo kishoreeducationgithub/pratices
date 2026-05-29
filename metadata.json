@@ -1,0 +1,6 @@
+{
+  "name": "Birthday Celebration",
+  "description": "An elegant, animated tech-themed birthday celebration experience designed for a software associate and best friend.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
