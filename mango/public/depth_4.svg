@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="736" height="1104" viewBox="0 0 736 1104">
+  <defs>
+    <radialGradient id="dome" cx="48%" cy="49%" r="60%">
+      <stop offset="0%" stop-color="#fbfbfb"/>
+      <stop offset="36%" stop-color="#d2d2d2"/>
+      <stop offset="69%" stop-color="#707070"/>
+      <stop offset="100%" stop-color="#050505"/>
+    </radialGradient>
+    <linearGradient id="ridge" x1="22%" y1="12%" x2="78%" y2="88%">
+      <stop offset="0%" stop-color="#222222" stop-opacity="0"/>
+      <stop offset="45%" stop-color="#ffffff" stop-opacity="0.3"/>
+      <stop offset="57%" stop-color="#ffffff" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#222222" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="736" height="1104" fill="#000"/>
+  <ellipse cx="356" cy="542" rx="326" ry="506" fill="url(#dome)"/>
+  <ellipse cx="376" cy="538" rx="72" ry="452" fill="url(#ridge)" transform="rotate(13 376 538)"/>
+</svg>

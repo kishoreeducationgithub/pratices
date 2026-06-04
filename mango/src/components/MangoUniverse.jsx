@@ -1,663 +1,429 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, ShoppingCart, Crosshair, HelpCircle, Check } from 'lucide-react'
 
-export default function MangoUniverse({ onAddToCart }) {
-  const mountRef = useRef(null)
-  const [selectedId, setSelectedId] = useState('alphonso')
-  const [addedNotify, setAddedNotify] = useState(false)
+const mangoes = [
+  {
+    texturePath: '/mango_1.jpg',
+    depthPath: '/depth_1.svg',
+    position: [-4.6, 0.12, -0.35],
+    scale: 1.08,
+    rotationZ: -0.1,
+    phase: 0.0
+  },
+  {
+    texturePath: '/mango_2.jpg',
+    depthPath: '/depth_2.svg',
+    position: [-2.72, -0.18, 0.22],
+    scale: 1.0,
+    rotationZ: 0.08,
+    phase: 0.78
+  },
+  {
+    texturePath: '/mango_3.jpg',
+    depthPath: '/depth_3.svg',
+    position: [-0.9, 0.2, -0.08],
+    scale: 1.03,
+    rotationZ: -0.04,
+    phase: 1.55
+  },
+  {
+    texturePath: '/mango_4.jpg',
+    depthPath: '/depth_4.svg',
+    position: [0.9, -0.08, 0.32],
+    scale: 1.03,
+    rotationZ: 0.06,
+    phase: 2.35
+  },
+  {
+    texturePath: '/mango_5.jpg',
+    depthPath: '/depth_5.svg',
+    position: [2.72, 0.18, -0.28],
+    scale: 1.04,
+    rotationZ: -0.08,
+    phase: 3.15
+  },
+  {
+    texturePath: '/mango_6.jpg',
+    depthPath: '/depth_6.svg',
+    position: [4.58, -0.14, 0.14],
+    scale: 1.1,
+    rotationZ: 0.11,
+    phase: 3.95
+  }
+]
 
-  const mangoData = {
-    alphonso: {
-      id: 'alphonso',
-      name: 'Alphonso Elite',
-      region: 'Devgad Coastline',
-      price: 4.99,
-      behavior: 'Royal Glow & Pulse',
-      description: 'The centerpiece of our collection. Handpicked at peak ripeness. Has an unmatched buttery saffron pulp with honeyed sweetness.',
-      taste: { sweetness: 98, acidity: 15, aroma: 100 }
-    },
-    kesar: {
-      id: 'kesar',
-      name: 'Kesar Royal',
-      region: 'Gir Hills Foothills',
-      price: 3.99,
-      behavior: 'Saffron Particle Bounce',
-      description: 'Intensely fragrant with a deep saffron skin hue. Balanced sweetness with a rich nectar-like texture.',
-      taste: { sweetness: 92, acidity: 20, aroma: 98 }
-    },
-    dasheri: {
-      id: 'dasheri',
-      name: 'Dasheri Sweet',
-      region: 'Malihabad Orchards',
-      price: 3.49,
-      behavior: 'Slow Drift & Spin',
-      description: 'A heritage variety with historical pedigree. Elongated shape, thin seed, melting fiber-free pulp.',
-      taste: { sweetness: 95, acidity: 12, aroma: 90 }
-    },
-    himsagar: {
-      id: 'himsagar',
-      name: 'Himsagar Rare',
-      region: 'Bengal Plains',
-      price: 4.49,
-      behavior: 'Orbital Floating Spiral',
-      description: 'An exotic and rare variety. Retains a rich green-yellow coat even when perfectly ripe. Creamy and sweet.',
-      taste: { sweetness: 96, acidity: 10, aroma: 95 }
-    },
-    totapuri: {
-      id: 'totapuri',
-      name: 'Totapuri Tangy',
-      region: 'Krishnagiri Valley',
-      price: 2.99,
-      behavior: 'Sharp Snap Rotation',
-      description: 'Famous for its beak-like curvature. Firm, crisp yellow-green skin, punchy sweet-and-sour profile, perfect for gourmet salads.',
-      taste: { sweetness: 75, acidity: 45, aroma: 80 }
-    },
-    langra: {
-      id: 'langra',
-      name: 'Langra Traditional',
-      region: 'Varanasi Orchards',
-      price: 3.29,
-      behavior: 'Heavy Breathing Wave',
-      description: 'A rich, traditional, green-skinned classic. Intense pine-like tropical aroma, highly juicy pulp.',
-      taste: { sweetness: 94, acidity: 18, aroma: 97 }
-    }
+function createSoftAlphaTexture() {
+  const size = 512
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d')
+  const image = context.createImageData(size, size)
+  const data = image.data
+
+  canvas.width = size
+  canvas.height = size
+
+  for (let i = 0; i < data.length; i += 4) {
+    const index = i / 4
+    const x = index % size
+    const y = Math.floor(index / size)
+    const nx = (x - size * 0.5) / (size * 0.48)
+    const ny = (y - size * 0.5) / (size * 0.47)
+    const oval = 1 - nx * nx - ny * ny
+    const alpha = THREE.MathUtils.smoothstep(oval, 0.01, 0.15)
+    const value = Math.round(alpha * 255)
+
+    data[i] = value
+    data[i + 1] = value
+    data[i + 2] = value
+    data[i + 3] = 255
   }
 
+  context.putImageData(image, 0, 0)
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.NoColorSpace
+  texture.wrapS = THREE.ClampToEdgeWrapping
+  texture.wrapT = THREE.ClampToEdgeWrapping
+  texture.needsUpdate = true
+
+  return texture
+}
+
+function initScene(mount) {
+  const width = mount.clientWidth || window.innerWidth
+  const height = mount.clientHeight || window.innerHeight
+  const scene = new THREE.Scene()
+  scene.fog = new THREE.FogExp2(0xfff0cf, 0.032)
+
+  const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100)
+  camera.position.set(0, 0.85, 8.9)
+
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true
+  })
+  renderer.setSize(width, height)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  renderer.outputColorSpace = THREE.SRGBColorSpace
+  renderer.toneMapping = THREE.ACESFilmicToneMapping
+  renderer.toneMappingExposure = 1.1
+  renderer.shadowMap.enabled = true
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  renderer.domElement.className = 'mango-canvas'
+  mount.appendChild(renderer.domElement)
+
+  return { scene, camera, renderer }
+}
+
+function addBackground(scene) {
+  const geometry = new THREE.PlaneGeometry(2, 2)
+  const material = new THREE.ShaderMaterial({
+    depthWrite: false,
+    depthTest: false,
+    uniforms: {
+      topColor: { value: new THREE.Color(0xfffff2) },
+      middleColor: { value: new THREE.Color(0xffefd3) },
+      bottomColor: { value: new THREE.Color(0xf7c467) }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = vec4(position.xy, 0.0, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec2 vUv;
+      uniform vec3 topColor;
+      uniform vec3 middleColor;
+      uniform vec3 bottomColor;
+
+      void main() {
+        float radial = smoothstep(0.95, 0.05, distance(vUv, vec2(0.48, 0.62)));
+        vec3 gradient = mix(bottomColor, middleColor, smoothstep(0.0, 0.62, vUv.y));
+        gradient = mix(gradient, topColor, smoothstep(0.45, 1.0, vUv.y));
+        gradient += radial * vec3(0.11, 0.08, 0.03);
+        gl_FragColor = vec4(gradient, 1.0);
+      }
+    `
+  })
+  const mesh = new THREE.Mesh(geometry, material)
+  mesh.renderOrder = -100
+  mesh.frustumCulled = false
+  scene.add(mesh)
+}
+
+function addLighting(scene) {
+  const ambient = new THREE.AmbientLight(0xfff4dc, 1.2)
+  scene.add(ambient)
+
+  const key = new THREE.DirectionalLight(0xffffff, 3.25)
+  key.position.set(-4.2, 5.4, 5.8)
+  key.castShadow = true
+  key.shadow.mapSize.set(1536, 1536)
+  key.shadow.camera.near = 0.5
+  key.shadow.camera.far = 18
+  key.shadow.camera.left = -7.5
+  key.shadow.camera.right = 7.5
+  key.shadow.camera.top = 5.5
+  key.shadow.camera.bottom = -4.8
+  scene.add(key)
+
+  const rim = new THREE.PointLight(0xffbd38, 17, 16, 1.75)
+  rim.position.set(4.8, 2.4, -3.8)
+  scene.add(rim)
+
+  const coolFill = new THREE.PointLight(0x9fffba, 3.1, 13, 2.1)
+  coolFill.position.set(-4.2, -1.65, 2.7)
+  scene.add(coolFill)
+}
+
+function addShadowPlane(scene) {
+  const geometry = new THREE.PlaneGeometry(12.8, 4.2)
+  const material = new THREE.ShadowMaterial({
+    color: 0x7a4114,
+    opacity: 0.18,
+    transparent: true
+  })
+  const shadow = new THREE.Mesh(geometry, material)
+  shadow.position.set(0, -2.08, -0.1)
+  shadow.rotation.x = -Math.PI / 2
+  shadow.receiveShadow = true
+  scene.add(shadow)
+}
+
+function addLightDust(scene) {
+  const count = 150
+  const geometry = new THREE.BufferGeometry()
+  const positions = new Float32Array(count * 3)
+
+  for (let i = 0; i < count; i += 1) {
+    positions[i * 3] = (Math.random() - 0.5) * 12
+    positions[i * 3 + 1] = (Math.random() - 0.5) * 5.8
+    positions[i * 3 + 2] = -3 + Math.random() * 4
+  }
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+
+  const material = new THREE.PointsMaterial({
+    color: 0xffc24b,
+    size: 0.04,
+    transparent: true,
+    opacity: 0.32,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  })
+
+  const dust = new THREE.Points(geometry, material)
+  scene.add(dust)
+  return dust
+}
+
+const textureLoader = new THREE.TextureLoader()
+
+async function loadTextures(texturePath, depthPath) {
+  const [texture, depthMap] = await Promise.all([
+    textureLoader.loadAsync(texturePath),
+    textureLoader.loadAsync(depthPath)
+  ])
+
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.anisotropy = 8
+  texture.minFilter = THREE.LinearMipmapLinearFilter
+  texture.magFilter = THREE.LinearFilter
+
+  depthMap.colorSpace = THREE.NoColorSpace
+  depthMap.anisotropy = 4
+  depthMap.minFilter = THREE.LinearMipmapLinearFilter
+  depthMap.magFilter = THREE.LinearFilter
+
+  return { texture, depthMap }
+}
+
+async function createMango(texturePath, depthPath, position, options = {}) {
+  const { texture, depthMap } = await loadTextures(texturePath, depthPath)
+  const aspect = texture.image.width / texture.image.height
+  const height = 2.84 * (options.scale || 1)
+  const width = height * aspect
+  const geometry = new THREE.PlaneGeometry(width, height, 160, 160)
+  const alphaMap = createSoftAlphaTexture()
+
+  const material = new THREE.MeshPhysicalMaterial({
+    map: texture,
+    alphaMap,
+    displacementMap: depthMap,
+    displacementScale: options.displacementScale ?? 0.36,
+    transparent: true,
+    alphaTest: 0.5,
+    roughness: 0.48,
+    metalness: 0.08,
+    clearcoat: 0.46,
+    clearcoatRoughness: 0.23,
+    side: THREE.DoubleSide
+  })
+
+  const mesh = new THREE.Mesh(geometry, material)
+  mesh.position.fromArray(position)
+  mesh.rotation.set(
+    THREE.MathUtils.degToRad(options.rotationX ?? 0),
+    THREE.MathUtils.degToRad(options.rotationY ?? 0),
+    options.rotationZ ?? 0
+  )
+  mesh.castShadow = true
+  mesh.receiveShadow = true
+  mesh.userData = {
+    basePosition: mesh.position.clone(),
+    baseRotation: mesh.rotation.clone(),
+    phase: options.phase ?? 0,
+    rotateSpeed: options.rotateSpeed ?? 0.005,
+    floatAmp: options.floatAmp ?? 0.2
+  }
+
+  return mesh
+}
+
+function disposeScene(scene, renderer) {
+  scene.traverse((object) => {
+    if (!object.isMesh && !object.isPoints) return
+
+    object.geometry?.dispose()
+    const materials = Array.isArray(object.material) ? object.material : [object.material]
+    materials.forEach((material) => {
+      if (!material) return
+      Object.values(material).forEach((value) => {
+        if (value?.isTexture) value.dispose()
+      })
+      material.dispose()
+    })
+  })
+  renderer.dispose()
+}
+
+export default function MangoUniverse() {
+  const mountRef = useRef(null)
+
   useEffect(() => {
-    const currentMount = mountRef.current
-    if (!currentMount) return
+    const mount = mountRef.current
+    if (!mount) return undefined
 
-    // --- Scene Setup ---
-    const scene = new THREE.Scene()
-    scene.fog = new THREE.FogExp2(0x12100e, 0.08)
+    let animationFrameId = 0
+    let isDisposed = false
+    const mangoGroup = new THREE.Group()
+    const pointer = new THREE.Vector2(0, 0)
+    const targetPointer = new THREE.Vector2(0, 0)
+    const { scene, camera, renderer } = initScene(mount)
 
-    // --- Camera Setup ---
-    const camera = new THREE.PerspectiveCamera(
-      45,
-      currentMount.clientWidth / currentMount.clientHeight,
-      0.1,
-      100
-    )
-    camera.position.set(0, 2, 8)
+    addBackground(scene)
+    addLighting(scene)
+    addShadowPlane(scene)
+    const dust = addLightDust(scene)
+    scene.add(mangoGroup)
 
-    let animationFrameId;
+    async function buildMangoes() {
+      const meshes = await Promise.all(
+        mangoes.map((mango, index) =>
+          createMango(mango.texturePath, mango.depthPath, mango.position, {
+            scale: mango.scale,
+            phase: mango.phase,
+            rotationX: index % 2 === 0 ? 4 : -4,
+            rotationY: (index - 2.5) * 4,
+            rotationZ: mango.rotationZ,
+            rotateSpeed: 0.0038 + index * 0.00055,
+            floatAmp: 0.16 + (index % 3) * 0.035,
+            displacementScale: 0.3 + (index % 3) * 0.04
+          })
+        )
+      )
 
-    // --- WebGLRenderer ---
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-    const initialWidth = currentMount.clientWidth || 600
-    const initialHeight = currentMount.clientHeight || 450
-    renderer.setSize(initialWidth, initialHeight)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.shadowMap.enabled = true
-    renderer.domElement.style.width = '100%'
-    renderer.domElement.style.height = '100%'
-    currentMount.appendChild(renderer.domElement)
-
-    // --- Lighting ---
-    const ambientLight = new THREE.AmbientLight(0xfff8e1, 0.15)
-    scene.add(ambientLight)
-
-    const spotLightGold = new THREE.SpotLight(0xffc300, 15, 20, Math.PI / 4, 0.5, 1)
-    spotLightGold.position.set(-5, 8, 4)
-    spotLightGold.castShadow = true
-    scene.add(spotLightGold)
-
-    const spotLightGreen = new THREE.SpotLight(0x2e7d32, 10, 20, Math.PI / 4, 0.5, 1)
-    spotLightGreen.position.set(5, 8, -4)
-    scene.add(spotLightGreen)
-
-    const keyLight = new THREE.DirectionalLight(0xfff8e1, 1.5)
-    keyLight.position.set(0, 5, 5)
-    scene.add(keyLight)
-
-    // --- Background Dust Particles ---
-    const particleGeo = new THREE.BufferGeometry()
-    const particleCount = 150
-    const posArr = new Float32Array(particleCount * 3)
-
-    for (let i = 0; i < particleCount * 3; i += 3) {
-      posArr[i] = (Math.random() - 0.5) * 15
-      posArr[i + 1] = (Math.random() - 0.5) * 10
-      posArr[i + 2] = (Math.random() - 0.5) * 10
-    }
-
-    particleGeo.setAttribute('position', new THREE.BufferAttribute(posArr, 3))
-    const particleMat = new THREE.PointsMaterial({
-      size: 0.05,
-      color: 0xffc300,
-      transparent: true,
-      opacity: 0.4,
-      blending: THREE.AdditiveBlending
-    })
-    const dustParticles = new THREE.Points(particleGeo, particleMat)
-    scene.add(dustParticles)
-
-    // --- Load Pinterest Reference Textures ---
-    const textureLoader = new THREE.TextureLoader()
-    const textures = {
-      alphonso: textureLoader.load('/mango_1.jpg'),
-      kesar: textureLoader.load('/mango_2.jpg'),
-      dasheri: textureLoader.load('/mango_3.jpg'),
-      himsagar: textureLoader.load('/mango_4.jpg'),
-      totapuri: textureLoader.load('/mango_5.jpg'),
-      langra: textureLoader.load('/mango_6.jpg')
-    }
-
-    // --- Procedural Mango Builder ---
-    const createMangoMesh = (type, skinColor, roughness) => {
-      const mangoGroup = new THREE.Group()
-
-      // 1. Mango Fruit Body (deformed sphere)
-      const bodyGeo = new THREE.SphereGeometry(0.7, 32, 32)
-      
-      // Deform sphere to create a classic curved mango shape specific to each variety
-      const positions = bodyGeo.attributes.position
-      for (let i = 0; i < positions.count; i++) {
-        let x = positions.getX(i)
-        let y = positions.getY(i)
-        let z = positions.getZ(i)
-
-        if (type === 'alphonso') {
-          // Alphonso: Plump, slightly oblique slope on the shoulder
-          if (x > 0) {
-            y -= 0.12 * Math.pow(x, 2)
-          } else {
-            y += 0.05 * Math.pow(x, 2)
-          }
-          z *= 0.85
-        } else if (type === 'kesar') {
-          // Kesar: Curved, slightly smaller kidney shape
-          if (x > 0) {
-            y -= 0.22 * Math.pow(x, 2)
-          } else {
-            y += 0.06 * Math.pow(x, 2)
-          }
-          z *= 0.78
-        } else if (type === 'dasheri') {
-          // Dasheri: Very long, slender, cylindrical structure
-          if (x > 0) {
-            y -= 0.05 * Math.pow(x, 2)
-          }
-          z *= 0.65
-        } else if (type === 'himsagar') {
-          // Himsagar: Oval egg shape, rounded and symmetrical
-          z *= 0.90
-        } else if (type === 'totapuri') {
-          // Totapuri: Elongated body with a hook-like beak tip at the end
-          if (x > 0) {
-            y -= 0.28 * Math.pow(x, 2)
-            if (x > 0.45) {
-              y -= 0.35 * Math.pow(x - 0.45, 2) // Parrot beak tip
-            }
-          } else {
-            y += 0.05 * Math.pow(x, 2)
-          }
-          z *= 0.75
-        } else if (type === 'langra') {
-          // Langra: Oval-chubby shape
-          if (x > 0) {
-            y -= 0.15 * Math.pow(x, 2)
-          }
-          z *= 0.88
-        }
-
-        positions.setXYZ(i, x, y, z)
-      }
-      bodyGeo.computeVertexNormals()
-
-      // Scale custom dimensions per variety
-      if (type === 'alphonso') {
-        bodyGeo.scale(1.25, 0.95, 0.85)
-      } else if (type === 'kesar') {
-        bodyGeo.scale(1.2, 0.85, 0.78)
-      } else if (type === 'dasheri') {
-        bodyGeo.scale(1.6, 0.72, 0.62) // Elongated slender
-      } else if (type === 'himsagar') {
-        bodyGeo.scale(1.15, 0.95, 0.9)
-      } else if (type === 'totapuri') {
-        bodyGeo.scale(1.5, 0.78, 0.7) // Curved beak
-      } else if (type === 'langra') {
-        bodyGeo.scale(1.22, 0.92, 0.85)
+      if (isDisposed) {
+        meshes.forEach((mesh) => {
+          mesh.geometry.dispose()
+          mesh.material.dispose()
+        })
+        return
       }
 
-      // Premium Physical Material mapping the Pinterest reference texture
-      const bodyMat = new THREE.MeshPhysicalMaterial({
-        map: textures[type],
-        roughness: roughness,
-        metalness: 0.05,
-        clearcoat: 0.9,
-        clearcoatRoughness: 0.15,
-        sheen: 0.3,
-        sheenColor: 0xffe082
-      })
-
-      const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat)
-      bodyMesh.castShadow = true
-      bodyMesh.receiveShadow = true
-      mangoGroup.add(bodyMesh)
-
-      // 2. Stem
-      const stemCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-0.85, 0.35, 0),
-        new THREE.Vector3(-1.05, 0.65, 0.05),
-        new THREE.Vector3(-1.15, 0.85, 0.1)
-      ])
-      const stemGeo = new THREE.TubeGeometry(stemCurve, 10, 0.035, 8, false)
-      const stemMat = new THREE.MeshStandardMaterial({ color: 0x4e342e, roughness: 0.9 })
-      const stemMesh = new THREE.Mesh(stemGeo, stemMat)
-      mangoGroup.add(stemMesh)
-
-      // 3. Leaf
-      const leafShape = new THREE.Shape()
-      leafShape.moveTo(0, 0)
-      leafShape.quadraticCurveTo(0.2, 0.4, 0.08, 0.85)
-      leafShape.quadraticCurveTo(-0.15, 0.4, 0, 0)
-      
-      const leafGeo = new THREE.ShapeGeometry(leafShape)
-      const leafMat = new THREE.MeshStandardMaterial({ 
-        color: 0x1b5e20, 
-        roughness: 0.5, 
-        side: THREE.DoubleSide 
-      })
-      const leafMesh = new THREE.Mesh(leafGeo, leafMat)
-      leafMesh.position.set(-1.05, 0.65, 0.05)
-      leafMesh.scale.set(0.65, 0.65, 0.65)
-      leafMesh.rotation.set(0.3, 0.4, -0.8)
-      mangoGroup.add(leafMesh)
-
-      return mangoGroup
+      meshes.forEach((mesh) => mangoGroup.add(mesh))
     }
 
-    // --- Instantiate Mangoes ---
-    const mangoes = {}
-    
-    // 1. Alphonso Elite (Saffron Gold)
-    mangoes.alphonso = createMangoMesh('alphonso', 0xffa726, 0.15)
-    mangoes.alphonso.position.set(-3.2, 0.8, 0)
-    
-    // 2. Kesar Royal (Golden Orange)
-    mangoes.kesar = createMangoMesh('kesar', 0xffca28, 0.2)
-    mangoes.kesar.position.set(-1.3, -0.6, 2.0)
-
-    // 3. Dasheri Sweet (Amber Yellow)
-    mangoes.dasheri = createMangoMesh('dasheri', 0xfdd835, 0.22)
-    mangoes.dasheri.position.set(1.3, 0.9, 1.8)
-
-    // 4. Himsagar Rare (Green Yellow)
-    mangoes.himsagar = createMangoMesh('himsagar', 0xd4e157, 0.28)
-    mangoes.himsagar.position.set(3.2, -0.5, 0)
-
-    // 5. Totapuri Tangy (Beak Curved)
-    mangoes.totapuri = createMangoMesh('totapuri', 0xffee58, 0.18)
-    mangoes.totapuri.position.set(1.3, -0.9, -2.0)
-
-    // 6. Langra Traditional (Organic Green)
-    mangoes.langra = createMangoMesh('langra', 0x81c784, 0.3)
-    mangoes.langra.position.set(-1.3, 0.7, -2.0)
-
-    // Add raycasting ID keys to body meshes
-    Object.entries(mangoes).forEach(([id, group]) => {
-      // Key the body mesh so raycaster maps it
-      group.children[0].userData = { id }
-      scene.add(group)
-    })
-
-    // --- Camera Orbit & Target Interpolation States ---
-    const targetFocusPositions = {
-      alphonso: new THREE.Vector3(-3.2, 0.8, 0),
-      kesar: new THREE.Vector3(-1.3, -0.6, 2.0),
-      dasheri: new THREE.Vector3(1.3, 0.9, 1.8),
-      himsagar: new THREE.Vector3(3.2, -0.5, 0),
-      totapuri: new THREE.Vector3(1.3, -0.9, -2.0),
-      langra: new THREE.Vector3(-1.3, 0.7, -2.0)
-    }
-
-    const currentFocus = new THREE.Vector3(0, 0, 0)
-    let activeId = 'alphonso'
-
-    // --- Raycasting click triggers ---
-    const raycaster = new THREE.Raycaster()
-    const mouse = new THREE.Vector2()
-
-    const handleCanvasClick = (e) => {
+    function handlePointerMove(event) {
       const rect = renderer.domElement.getBoundingClientRect()
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
-
-      raycaster.setFromCamera(mouse, camera)
-      // Inspect only body meshes
-      const targets = Object.values(mangoes).map(g => g.children[0])
-      const intersects = raycaster.intersectObjects(targets)
-
-      if (intersects.length > 0) {
-        const clickedId = intersects[0].object.userData.id
-        if (clickedId) {
-          activeId = clickedId
-          setSelectedId(clickedId)
-        }
-      }
+      targetPointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+      targetPointer.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1)
     }
 
-    renderer.domElement.addEventListener('click', handleCanvasClick)
+    function handleResize() {
+      const width = mount.clientWidth || window.innerWidth
+      const height = mount.clientHeight || window.innerHeight
+      camera.aspect = width / height
+      camera.updateProjectionMatrix()
+      renderer.setSize(width, height)
+    }
 
-    // Update active id from React parent state changes
-    const checkStateInterval = setInterval(() => {
-      // Synchronize hook state with inside loop
-      setSelectedId((curr) => {
-        activeId = curr
-        return curr
-      })
-    }, 200)
-
-    // --- Animation Kinetics Loop ---
-    let clock = new THREE.Clock()
-
-    const animate = () => {
+    function animate() {
       animationFrameId = requestAnimationFrame(animate)
-      const time = clock.getElapsedTime()
+      const time = performance.now() * 0.001
 
-      // 1. Alphonso: Slow Royal Y-Rotation & Subtle Pulse Glow
-      if (mangoes.alphonso) {
-        // Slow royal rotation
-        mangoes.alphonso.rotation.y = time * 0.12
-        // Breathing scale pulse
-        const pulse = 1.0 + Math.sin(time * 0.8) * 0.015
-        mangoes.alphonso.scale.set(pulse, pulse, pulse)
-        // Multi-frequency slow float
-        mangoes.alphonso.position.y = 0.8 + (Math.sin(time * 0.4) + 0.25 * Math.cos(time * 1.1)) * 0.08
-        // Gentle micro-sways
-        mangoes.alphonso.rotation.x = Math.sin(time * 0.3) * 0.03
-        mangoes.alphonso.rotation.z = Math.cos(time * 0.3) * 0.03
-      }
+      pointer.lerp(targetPointer, 0.045)
+      mangoGroup.children.forEach((mesh, index) => {
+        const { basePosition, baseRotation, phase, rotateSpeed, floatAmp } = mesh.userData
+        mesh.position.x = basePosition.x + Math.sin(time * 0.38 + phase) * 0.08
+        mesh.position.y = basePosition.y + Math.sin(time * 0.82 + phase) * floatAmp
+        mesh.position.z = basePosition.z + Math.cos(time * 0.55 + phase) * 0.09
+        mesh.rotation.y =
+          baseRotation.y +
+          time * rotateSpeed +
+          Math.sin(time * 0.48 + phase) * 0.15 +
+          pointer.x * 0.09
+        mesh.rotation.x = baseRotation.x + Math.sin(time * 0.68 + phase) * 0.08 - pointer.y * 0.05
+        mesh.rotation.z = baseRotation.z + Math.cos(time * 0.4 + phase) * 0.035
+        mesh.material.displacementScale = THREE.MathUtils.lerp(
+          mesh.material.displacementScale,
+          0.34 + Math.sin(time * 0.55 + index) * 0.03,
+          0.035
+        )
+      })
 
-      // 2. Kesar: Gentle vertical bounce with elastic easing
-      if (mangoes.kesar) {
-        // Elastic bounce shape (first + second harmonic)
-        const bounce = (Math.sin(time * 1.2) + 0.35 * Math.sin(time * 2.4)) * 0.14
-        mangoes.kesar.position.y = -0.6 + bounce
-        mangoes.kesar.rotation.y = time * 0.22
-        // Elastic wobbles
-        mangoes.kesar.rotation.x = Math.cos(time * 1.2) * 0.06
-        mangoes.kesar.rotation.z = Math.sin(time * 1.2) * 0.06
-      }
+      dust.rotation.y = time * 0.025
+      dust.rotation.x = Math.sin(time * 0.2) * 0.045
 
-      // 3. Dasheri: Smooth horizontal drift with slight organic wobble
-      if (mangoes.dasheri) {
-        // Slow horizontal and vertical drift
-        mangoes.dasheri.position.x = 1.3 + Math.sin(time * 0.5) * 0.18
-        mangoes.dasheri.position.y = 0.9 + Math.cos(time * 0.4) * 0.08
-        mangoes.dasheri.rotation.y = time * 0.15
-        // Organic multi-axis wobble
-        mangoes.dasheri.rotation.x = (Math.sin(time * 1.8) + 0.2 * Math.cos(time * 3.6)) * 0.05
-        mangoes.dasheri.rotation.z = (Math.cos(time * 1.5) + 0.2 * Math.sin(time * 3.0)) * 0.05
-      }
-
-      // 4. Himsagar: Spiral orbit motion around invisible center
-      if (mangoes.himsagar) {
-        const radius = 0.3
-        const angle = time * 0.6
-        mangoes.himsagar.position.x = 3.2 + Math.cos(angle) * radius
-        mangoes.himsagar.position.z = Math.sin(angle) * radius
-        mangoes.himsagar.position.y = -0.5 + Math.sin(time * 1.2) * 0.12
-        mangoes.himsagar.rotation.y = -time * 0.25
-        mangoes.himsagar.rotation.x = Math.sin(time * 0.8) * 0.05
-      }
-
-      // 5. Totapuri: Sharp dynamic rotation with slight directional flicks
-      if (mangoes.totapuri) {
-        // Calculate step and sub-progress
-        const step = Math.floor(time * 0.4)
-        const progress = (time * 0.4) % 1
-        // Smooth sine ease-out back curve for snap flick
-        const easeOutBack = Math.sin(progress * Math.PI / 2)
-        const targetRot = step * (Math.PI / 2)
-        
-        // Apply flick-rotation with tiny high-frequency flick bounce
-        mangoes.totapuri.rotation.y = targetRot + easeOutBack * (Math.PI / 2) + Math.sin(time * 8) * 0.012
-        // Dynamic bouncing vertical drift
-        mangoes.totapuri.position.y = -0.9 + (Math.sin(time * 2.8) + 0.3 * Math.cos(time * 5.6)) * 0.06
-      }
-
-      // 6. Langra: Slow breathing motion (expand and contract float)
-      if (mangoes.langra) {
-        // Calm organic breathing rhythm scale
-        const breathing = 0.96 + Math.sin(time * 0.6) * 0.04
-        mangoes.langra.scale.set(breathing, breathing, breathing)
-        // Smooth heavy gravity float
-        mangoes.langra.position.y = 0.7 + (Math.sin(time * 0.3) + 0.1 * Math.cos(time * 0.7)) * 0.08
-        mangoes.langra.rotation.y = time * 0.08
-        mangoes.langra.rotation.z = Math.sin(time * 0.3) * 0.04
-      }
-
-      // Floating background dust
-      dustParticles.rotation.y = time * 0.015
-      dustParticles.rotation.x = time * 0.005
-
-      // --- Volumetric Camera Interpolation ---
-      const activePos = targetFocusPositions[activeId]
-      if (activePos) {
-        // Move controls target smoothly to selected mango
-        currentFocus.lerp(activePos, 0.06)
-        camera.lookAt(currentFocus)
-
-        // Interpolate camera target coordinates
-        // Position camera relative to the focused item
-        const offset = new THREE.Vector3(1.6, 0.8, 3.2)
-        const cameraTarget = activePos.clone().add(offset)
-        camera.position.lerp(cameraTarget, 0.06)
-      }
+      camera.position.x = THREE.MathUtils.lerp(camera.position.x, pointer.x * 0.48, 0.035)
+      camera.position.y = THREE.MathUtils.lerp(camera.position.y, 0.82 + pointer.y * 0.25, 0.035)
+      camera.position.z = THREE.MathUtils.lerp(camera.position.z, 8.7 + pointer.y * 0.05, 0.035)
+      camera.lookAt(pointer.x * 0.18, pointer.y * 0.08, 0)
 
       renderer.render(scene, camera)
     }
 
+    renderer.domElement.addEventListener('pointermove', handlePointerMove)
+
+    const resizeObserver = new ResizeObserver(handleResize)
+    resizeObserver.observe(mount)
+
+    buildMangoes()
     animate()
 
-    // --- Robust Resize Observer ---
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (let entry of entries) {
-        const { width, height } = entry.contentRect
-        if (width && height) {
-          camera.aspect = width / height
-          camera.updateProjectionMatrix()
-          renderer.setSize(width, height)
-        }
-      }
-    })
-    resizeObserver.observe(currentMount)
-
-    // --- Clean Up ---
     return () => {
-      clearInterval(checkStateInterval)
+      isDisposed = true
       cancelAnimationFrame(animationFrameId)
       resizeObserver.disconnect()
-      
-      if (renderer.domElement && currentMount.contains(renderer.domElement)) {
-        renderer.domElement.removeEventListener('click', handleCanvasClick)
-        currentMount.removeChild(renderer.domElement)
+      renderer.domElement.removeEventListener('pointermove', handlePointerMove)
+
+      if (renderer.domElement && mount.contains(renderer.domElement)) {
+        mount.removeChild(renderer.domElement)
       }
-      
-      // Dispose materials & geometries
-      scene.clear()
-      renderer.dispose()
+
+      disposeScene(scene, renderer)
     }
   }, [])
 
-  const currentMango = mangoData[selectedId]
-
   return (
-    <section 
-      id="mango-universe" 
-      className="py-20 sm:py-24 bg-darkwood dark:bg-black transition-colors duration-300 relative z-20 overflow-hidden"
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        {/* Header */}
-        <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-12">
-          <span className="text-xs font-bold text-mango tracking-wider uppercase flex items-center justify-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5" />
-            3D Interactive Orchard
-          </span>
-          <h2 className="font-playfair text-3xl sm:text-4xl font-bold text-cream">
-            Interactive 3D Mango Universe
-          </h2>
-          <div className="h-1 w-16 bg-mango mx-auto mt-3 rounded-full" />
-          <p className="text-cream/60 mt-4 text-sm sm:text-base">
-            Click directly on any floating 3D mango mesh to orbit the camera, reveal its taste statistics, or add it to your crate.
-          </p>
-        </div>
-
-        {/* The 3D Container & Panel */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch bg-darkwood-dark/50 border border-white/5 rounded-[32px] p-4 sm:p-6 lg:p-8 backdrop-blur-sm min-h-[620px]">
-          
-          {/* Left / Selector Panel: Mango Selector items (3 cols) */}
-          <div className="lg:col-span-3 flex flex-row lg:flex-col justify-start lg:justify-center gap-2 overflow-x-auto lg:overflow-x-visible no-scrollbar pb-3 lg:pb-0">
-            {Object.values(mangoData).map((m) => (
-              <button
-                key={m.id}
-                onClick={() => setSelectedId(m.id)}
-                className={`flex-shrink-0 lg:w-full p-4 rounded-2xl border text-left transition-all duration-300 ${
-                  selectedId === m.id
-                    ? 'border-mango bg-mango/10 text-cream shadow-lg shadow-mango/5'
-                    : 'border-white/5 bg-white/2 hover:border-white/10 text-cream/70 hover:text-cream'
-                }`}
-              >
-                <div className="flex justify-between items-center gap-3">
-                  <div>
-                    <h4 className="text-sm font-bold">{m.name}</h4>
-                    <p className="text-[10px] text-cream/50 mt-0.5">{m.region}</p>
-                  </div>
-                  <span className="text-xl">🥭</span>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Center: The WebGL Viewport (6 cols) */}
-          <div className="lg:col-span-6 relative rounded-2xl overflow-hidden bg-black/45 border border-white/5 h-[450px] flex items-center justify-center">
-            
-            {/* The 3D Canvas Mounting Node */}
-            <div ref={mountRef} className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing" />
-
-            {/* Instruction layer overlay */}
-            <div className="absolute top-4 left-4 pointer-events-none flex items-center gap-1.5 bg-black/60 border border-white/10 rounded-full px-3.5 py-1.5 text-xs text-cream/70 backdrop-blur-sm">
-              <Crosshair className="w-3.5 h-3.5 text-mango" />
-              <span>Click mangoes to inspect</span>
-            </div>
-          </div>
-
-          {/* Right: Selected Mango Details Sidebar (3 cols) */}
-          <div className="lg:col-span-3 flex flex-col justify-between text-left text-cream relative">
-            <AnimatePresence mode="wait">
-              {currentMango && (
-                <motion.div
-                  key={currentMango.id}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3 }}
-                  className="flex flex-col justify-between h-full space-y-6"
-                >
-                  <div className="space-y-5">
-                    {/* Header */}
-                    <div>
-                      <span className="text-[10px] font-bold text-mango uppercase tracking-widest">
-                        {currentMango.region}
-                      </span>
-                      <h3 className="font-playfair text-xl sm:text-2xl font-bold mt-1">
-                        {currentMango.name}
-                      </h3>
-                      <div className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-2.5 py-1 text-[10px] text-cream/80 mt-2 font-mono">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                        Physics: {currentMango.behavior}
-                      </div>
-                    </div>
-
-                    {/* Paragraph */}
-                    <p className="text-xs text-cream/70 leading-relaxed">
-                      {currentMango.description}
-                    </p>
-
-                    {/* Dials stats */}
-                    <div className="space-y-3 pt-2">
-                      <h4 className="text-[10.5px] font-bold uppercase tracking-wider text-cream/50">Tasting Metrics</h4>
-                      
-                      {/* Sweetness */}
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-bold text-cream/70">
-                          <span>Brix Sweetness</span>
-                          <span>{currentMango.taste.sweetness}%</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                          <div className="h-full bg-mango rounded-full" style={{ width: `${currentMango.taste.sweetness}%` }} />
-                        </div>
-                      </div>
-
-                      {/* Aroma */}
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-bold text-cream/70">
-                          <span>Tropical Aroma</span>
-                          <span>{currentMango.taste.aroma}%</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                          <div className="h-full bg-orange-500 rounded-full" style={{ width: `${currentMango.taste.aroma}%` }} />
-                        </div>
-                      </div>
-
-                      {/* Acidity */}
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-bold text-cream/70">
-                          <span>Acidity & Tang</span>
-                          <span>{currentMango.taste.acidity}%</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                          <div className="h-full bg-leaf rounded-full" style={{ width: `${currentMango.taste.acidity}%` }} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Add to Cart Actions */}
-                  <div className="pt-4 border-t border-white/10">
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="text-[10.5px] font-bold text-cream/50 uppercase">Harvest Price</span>
-                      <span className="text-xl font-black text-mango">${currentMango.price}</span>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        onAddToCart({
-                          id: currentMango.id,
-                          name: currentMango.name,
-                          description: `Premium single mango from ${currentMango.region}`,
-                          price: currentMango.price,
-                          unit: 'each',
-                          quantity: 1
-                        })
-                        setAddedNotify(true)
-                        setTimeout(() => setAddedNotify(false), 2000)
-                      }}
-                      className="w-full py-3.5 bg-mango hover:bg-mango-dark text-darkwood font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-lg shadow-mango/5 transition-all duration-300"
-                    >
-                      {addedNotify ? (
-                        <>
-                          <Check className="w-4 h-4" /> Added to Crate!
-                        </>
-                      ) : (
-                        <>
-                          <ShoppingCart className="w-4 h-4" /> Add to Cart
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-        </div>
+    <main className="mango-stage">
+      <div className="mango-scene" ref={mountRef} aria-label="Animated pseudo-3D floating mangoes" />
+      <div className="studio-label">
+        <span>Displacement Studio</span>
+        <strong>Floating Mangoes</strong>
       </div>
-    </section>
+    </main>
   )
 }
