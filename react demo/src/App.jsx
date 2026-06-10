@@ -26,6 +26,7 @@ const App = () => {
   return (
     <main>
       <h1>User list</h1>
+      <h1>User list</h1>
       {UserDeatails.map(({ id,userName, role, location }) => (
         <div>
 
