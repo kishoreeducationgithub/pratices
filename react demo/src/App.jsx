@@ -33,6 +33,7 @@ const App = () => {
           <ul key={Math.random()}>
             <li>{userName}</li>
             <li>{role}</li>
+            <li>{role}</li>
             <li>{location}</li>
           </ul>
         </div>
