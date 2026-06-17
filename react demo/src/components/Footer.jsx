@@ -1,9 +1,12 @@
-import React from 'react'
-
+/**
+ * Footer component that displays the copyright information at the bottom of the page.
+ * 
+ * @returns {React.JSX.Element} The rendered Footer component.
+ */
 const Footer = () => {
     return (
         <div>
-            <p>Copyright 2025 My Website </p>
+            <p>&copy; 2025 My Website</p>
         </div>
     )
 }
